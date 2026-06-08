@@ -1,60 +1,49 @@
-import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
-const links = [
-  { to: '/', label: 'Feed' },
-  { to: '/report', label: 'Report Issue' },
-  { to: '/plant', label: 'Plant Tree' },
-  { to: '/impact', label: 'My Impact' },
-  { to: '/leaderboard', label: 'Leaderboard' },
-];
+const Navbar = () => {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
-export default function Navbar() {
-  const { user, logout } = useAuth();
-  const location = useLocation();
+  if (!user) return null
 
   return (
-    <nav className="navbar">
-      <Link to="/" className="navbar-brand">
-        <span className="brand-icon">🌍</span>
-        Mazingira
-      </Link>
+    <nav className="bg-forest shadow-lg sticky top-0 z-50">
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-center py-4">
+          <Link to="/" className="flex items-center space-x-2">
+            <span className="text-3xl">🌍</span>
+            <span className="text-2xl font-bold text-white">Mazingira</span>
+          </Link>
 
-      {user && (
-        <div className="navbar-links">
-          {links.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={location.pathname === link.to ? 'nav-link active' : 'nav-link'}
-            >
-              {link.label}
+          <div className="flex items-center space-x-6">
+            <Link to="/" className="text-white hover:text-leaf transition-colors">
+              📱 Feed
             </Link>
-          ))}
-        </div>
-      )}
-
-      <div className="navbar-actions">
-        {user ? (
-          <>
-            <span className="user-badge">
-              {user.username} · {user.points} pts
-            </span>
-            <button type="button" onClick={logout} className="btn btn-outline">
+            <Link to="/create" className="text-white hover:text-leaf transition-colors">
+              ➕ Create Post
+            </Link>
+            <Link to="/leaderboard" className="text-white hover:text-leaf transition-colors">
+              🏆 Leaderboard
+            </Link>
+            <Link to={`/profile/${user.id}`} className="text-white hover:text-leaf transition-colors">
+              👤 {user.username}
+            </Link>
+            <button
+              onClick={() => {
+                logout()
+                navigate('/login')
+              }}
+              className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+            >
               Logout
             </button>
-          </>
-        ) : (
-          <>
-            <Link to="/login" className="btn btn-outline">
-              Login
-            </Link>
-            <Link to="/register" className="btn btn-primary">
-              Sign Up
-            </Link>
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </nav>
-  );
+  )
 }
+
+export default Navbar

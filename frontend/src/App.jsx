@@ -1,53 +1,43 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Layout from './components/Layout';
-import Landing from './pages/Landing';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Feed from './pages/Feed';
-import ReportIssue from './pages/ReportIssue';
-import PlantTree from './pages/PlantTree';
-import Impact from './pages/Impact';
-import Leaderboard from './pages/Leaderboard';
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
+import Navbar from './components/Navbar'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import Feed from './pages/Feed'
+import CreatePost from './pages/CreatePost'
+import Profile from './pages/Profile'
+import Leaderboard from './pages/Leaderboard'
+import { AuthProvider } from './context/AuthContext'
+import PrivateRoute from './components/PrivateRoute'
 
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <p className="loading page">Loading...</p>;
-  if (!user) return <Navigate to="/login" replace />;
-  return children;
-}
-
-function PublicOnlyRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <p className="loading page">Loading...</p>;
-  if (user) return <Navigate to="/" replace />;
-  return children;
-}
-
-function AppRoutes() {
-  const { user } = useAuth();
-
+function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={user ? <Feed /> : <Landing />} />
-        <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
-        <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
-        <Route path="/report" element={<ProtectedRoute><ReportIssue /></ProtectedRoute>} />
-        <Route path="/plant" element={<ProtectedRoute><PlantTree /></ProtectedRoute>} />
-        <Route path="/impact" element={<ProtectedRoute><Impact /></ProtectedRoute>} />
-        <Route path="/leaderboard" element={<Leaderboard />} />
-      </Routes>
-    </Layout>
-  );
+    <AuthProvider>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#2E7D32',
+            color: '#fff',
+          },
+        }}
+      />
+      <div className="min-h-screen">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/" element={<PrivateRoute><Feed /></PrivateRoute>} />
+            <Route path="/create" element={<PrivateRoute><CreatePost /></PrivateRoute>} />
+            <Route path="/profile/:id?" element={<PrivateRoute><Profile /></PrivateRoute>} />
+            <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
+          </Routes>
+        </div>
+      </div>
+    </AuthProvider>
+  )
 }
 
-export default function App() {
-  return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
-  );
-}
+export default App

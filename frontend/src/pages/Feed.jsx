@@ -1,110 +1,163 @@
-import { useState, useEffect } from 'react';
-import api from '../api/client';
-import { useAuth } from '../context/AuthContext';
-import PostCard from '../components/PostCard';
+import React, { useState, useEffect } from 'react'
+import axios from 'axios'
+import { useAuth } from '../context/AuthContext'
+import toast from 'react-hot-toast'
 
-export default function Feed() {
-  const { user, refreshUser } = useAuth();
-  const [posts, setPosts] = useState([]);
-  const [content, setContent] = useState('');
-  const [location, setLocation] = useState(user?.location || '');
-  const [image, setImage] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+const Feed = () => {
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState('all')
+  const { user } = useAuth()
+
+  useEffect(() => {
+    fetchPosts()
+  }, [filter])
 
   const fetchPosts = async () => {
     try {
-      const res = await api.get('/posts');
-      setPosts(res.data);
-    } catch {
-      setError('Failed to load feed');
+      const url = filter === 'all' ? '/posts/feed' : `/posts/feed?type=${filter}`
+      const { data } = await axios.get(url)
+      setPosts(data.posts)
+    } catch (error) {
+      toast.error('Failed to load feed')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
-  useEffect(() => {
-    if (user?.location) setLocation(user.location);
-  }, [user]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!content.trim() || !location.trim()) return;
-
-    setSubmitting(true);
-    setError('');
+  const handleLike = async (postId) => {
     try {
-      const formData = new FormData();
-      formData.append('content', content);
-      formData.append('location', location);
-      if (image) formData.append('image', image);
-
-      await api.post('/posts', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      setContent('');
-      setImage(null);
-      await fetchPosts();
-      await refreshUser();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to post');
-    } finally {
-      setSubmitting(false);
+      const { data } = await axios.put(`/posts/${postId}/like`)
+      fetchPosts()
+    } catch (error) {
+      toast.error('Failed to like post')
     }
-  };
+  }
+
+  const handleComment = async (postId, text) => {
+    if (!text.trim()) return
+    try {
+      await axios.post(`/posts/${postId}/comment`, { text })
+      fetchPosts()
+      toast.success('Comment added!')
+    } catch (error) {
+      toast.error('Failed to add comment')
+    }
+  }
+
+  if (loading) {
+    return <div className="text-center text-forest text-xl">Loading feed... 🌿</div>
+  }
 
   return (
-    <div className="page feed-page">
-      <header className="page-header">
-        <h1>Community Feed</h1>
-        <p>See environmental actions from people in your community. Locations are public; personal info is hidden.</p>
-      </header>
-
-      <form onSubmit={handleSubmit} className="compose-card">
-        <h2>Share an update</h2>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="What's happening in your environment? Call for intervention, share news..."
-          rows={3}
-          required
-        />
-        <div className="form-row">
-          <input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="Location (visible to all)"
-            required
-          />
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setImage(e.target.files[0])}
-          />
-        </div>
-        {error && <div className="alert alert-error">{error}</div>}
-        <button type="submit" className="btn btn-primary" disabled={submitting}>
-          {submitting ? 'Posting...' : 'Post (+5 pts)'}
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-6 flex gap-4">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-4 py-2 rounded-lg ${filter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+        >
+          All Posts
         </button>
-      </form>
+        <button
+          onClick={() => setFilter('issue')}
+          className={`px-4 py-2 rounded-lg ${filter === 'issue' ? 'btn-primary' : 'btn-secondary'}`}
+        >
+          ⚠️ Issues
+        </button>
+        <button
+          onClick={() => setFilter('tree')}
+          className={`px-4 py-2 rounded-lg ${filter === 'tree' ? 'btn-primary' : 'btn-secondary'}`}
+        >
+          🌳 Trees
+        </button>
+      </div>
 
-      <section className="feed-list">
-        {loading ? (
-          <p className="loading">Loading feed...</p>
-        ) : posts.length === 0 ? (
-          <div className="empty-state">
-            <p>No posts yet. Be the first to share!</p>
+      <div className="space-y-6">
+        {posts.map((post) => (
+          <div key={post._id} className="card">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <span className="text-2xl mr-2">{post.type === 'tree' ? '🌳' : '⚠️'}</span>
+                <span className="font-semibold text-forest">{post.username}</span>
+                <span className="text-gray-500 text-sm ml-2">{post.location}</span>
+              </div>
+              <span className="text-sm text-gray-500">
+                {new Date(post.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+
+            <h3 className="text-xl font-bold text-gray-800 mb-2">{post.title}</h3>
+            <p className="text-gray-600 mb-4">{post.description}</p>
+
+            {post.photoUrl && (
+              <img src={post.photoUrl} alt="Post" className="rounded-lg mb-4 max-h-96 w-full object-cover" />
+            )}
+
+            {post.interventionNeeded && post.type === 'issue' && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <span className="text-red-600 font-semibold">⚠️ Intervention Needed: {post.interventionType}</span>
+                <p className="text-sm text-gray-600 mt-1">Status: {post.status}</p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-6 mb-4">
+              <button
+                onClick={() => handleLike(post._id)}
+                className="flex items-center gap-2 text-gray-600 hover:text-red-500 transition-colors"
+              >
+                ❤️ {post.likes?.length || 0} Likes
+              </button>
+              <span className="flex items-center gap-2 text-gray-600">
+                💬 {post.comments?.length || 0} Comments
+              </span>
+              <span className="flex items-center gap-2 text-forest font-semibold">
+                🌟 +{post.pointsAwarded} pts
+              </span>
+            </div>
+
+            <div className="border-t pt-4">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  const input = e.target.elements.comment
+                  handleComment(post._id, input.value)
+                  input.value = ''
+                }}
+                className="flex gap-2"
+              >
+                <input
+                  name="comment"
+                  type="text"
+                  placeholder="Add a comment..."
+                  className="input-field flex-1"
+                />
+                <button type="submit" className="btn-primary">
+                  Post
+                </button>
+              </form>
+
+              {post.comments?.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {post.comments.slice(-3).map((comment, idx) => (
+                    <div key={idx} className="bg-mint rounded-lg p-2">
+                      <span className="font-semibold text-forest">{comment.username}</span>
+                      <span className="text-gray-600 ml-2">{comment.text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        ) : (
-          posts.map((post) => <PostCard key={post.id} post={post} />)
+        ))}
+
+        {posts.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No posts yet. Be the first to create one! 🌱</p>
+          </div>
         )}
-      </section>
+      </div>
     </div>
-  );
+  )
 }
+
+export default Feed

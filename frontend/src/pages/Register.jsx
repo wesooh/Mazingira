@@ -1,101 +1,103 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
-export default function Register() {
-  const [form, setForm] = useState({
+const Register = () => {
+  const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
-    location: '',
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
-  const navigate = useNavigate();
+    location: ''
+  })
+  const { register } = useAuth()
+  const navigate = useNavigate()
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      await register(form);
-      navigate('/');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+    e.preventDefault()
+    const success = await register(formData)
+    if (success) navigate('/')
+  }
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1>Join Mazingira</h1>
-        <p className="auth-subtitle">
-          Report issues, plant trees, and earn points. Your location is public; personal details stay private.
-        </p>
+    <div className="max-w-md mx-auto">
+      <div className="card">
+        <div className="text-center mb-8">
+          <span className="text-6xl">🌱</span>
+          <h2 className="text-3xl font-bold text-forest mt-4">Join Mazingira</h2>
+          <p className="text-gray-600 mt-2">Start making a difference today</p>
+        </div>
 
-        {error && <div className="alert alert-error">{error}</div>}
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <label>
-            Username
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Username</label>
             <input
+              type="text"
               name="username"
-              value={form.username}
+              value={formData.username}
               onChange={handleChange}
+              className="input-field"
               required
-              minLength={3}
-              placeholder="Choose a username"
+              placeholder="eco_warrior"
             />
-          </label>
-          <label>
-            Email <span className="private-tag">(private)</span>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Email</label>
             <input
               type="email"
               name="email"
-              value={form.email}
+              value={formData.email}
               onChange={handleChange}
+              className="input-field"
               required
               placeholder="you@example.com"
             />
-          </label>
-          <label>
-            Password <span className="private-tag">(private)</span>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Password</label>
             <input
               type="password"
               name="password"
-              value={form.password}
+              value={formData.password}
               onChange={handleChange}
+              className="input-field"
               required
-              minLength={6}
-              placeholder="At least 6 characters"
+              placeholder="••••••"
             />
-          </label>
-          <label>
-            Location <span className="public-tag">(visible to everyone)</span>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Location</label>
             <input
+              type="text"
               name="location"
-              value={form.location}
+              value={formData.location}
               onChange={handleChange}
+              className="input-field"
               required
-              placeholder="e.g. Nairobi, Westlands"
+              placeholder="Nairobi, Kenya"
             />
-          </label>
-          <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
-            {loading ? 'Creating account...' : 'Create Account'}
+          </div>
+
+          <button type="submit" className="btn-primary w-full">
+            Register
           </button>
         </form>
 
-        <p className="auth-footer">
-          Already have an account? <Link to="/login">Sign in</Link>
+        <p className="text-center mt-6 text-gray-600">
+          Already have an account?{' '}
+          <Link to="/login" className="text-forest font-semibold hover:underline">
+            Login here
+          </Link>
         </p>
       </div>
     </div>
-  );
+  )
 }
+
+export default Register

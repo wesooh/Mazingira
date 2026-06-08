@@ -1,55 +1,80 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import api from '../api/client';
+import React, { createContext, useState, useContext, useEffect } from 'react'
+import axios from 'axios'
+import toast from 'react-hot-toast'
 
-const AuthContext = createContext(null);
+const AuthContext = createContext()
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+export const useAuth = () => useContext(AuthContext)
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null)
+  const [token, setToken] = useState(localStorage.getItem('token'))
+  const [loading, setLoading] = useState(true)
+
+  axios.defaults.baseURL = 'http://localhost:5000/api'
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
     if (token) {
-      api
-        .get('/auth/me')
-        .then((res) => setUser(res.data.user))
-        .catch(() => localStorage.removeItem('token'))
-        .finally(() => setLoading(false));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      fetchUser()
     } else {
-      setLoading(false);
+      setLoading(false)
     }
-  }, []);
+  }, [token])
+
+  const fetchUser = async () => {
+    try {
+      const { data } = await axios.get('/auth/me')
+      setUser(data.user)
+    } catch (error) {
+      console.error('Failed to fetch user:', error)
+      logout()
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const login = async (email, password) => {
-    const res = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', res.data.token);
-    setUser(res.data.user);
-    return res.data.user;
-  };
+    try {
+      const { data } = await axios.post('/auth/login', { email, password })
+      setToken(data.token)
+      localStorage.setItem('token', data.token)
+      axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
+      setUser(data.user)
+      toast.success('Welcome back to Mazingira! 🌍')
+      return true
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Login failed')
+      return false
+    }
+  }
 
-  const register = async (data) => {
-    const res = await api.post('/auth/register', data);
-    localStorage.setItem('token', res.data.token);
-    setUser(res.data.user);
-    return res.data.user;
-  };
+  const register = async (userData) => {
+    try {
+      const { data } = await axios.post('/auth/register', userData)
+      setToken(data.token)
+      localStorage.setItem('token', data.token)
+      axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
+      setUser(data.user)
+      toast.success('Account created! Welcome to Mazingira 🌱')
+      return true
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Registration failed')
+      return false
+    }
+  }
 
   const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-  };
-
-  const refreshUser = async () => {
-    const res = await api.get('/auth/me');
-    setUser(res.data.user);
-    return res.data.user;
-  };
+    setToken(null)
+    setUser(null)
+    localStorage.removeItem('token')
+    delete axios.defaults.headers.common['Authorization']
+    toast.success('Logged out successfully')
+  }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
-  );
+  )
 }
-
-export const useAuth = () => useContext(AuthContext);
