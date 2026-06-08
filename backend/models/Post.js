@@ -20,6 +20,10 @@ const postSchema = new mongoose.Schema({
   },
   photoUrl: {
     type: String,
+    required: [true, 'Photo is required for verification']
+  },
+  photoPublicId: {
+    type: String, // For Cloudinary management
     default: ''
   },
   location: {

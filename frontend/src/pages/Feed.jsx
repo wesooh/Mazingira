@@ -25,7 +25,6 @@ const Feed = () => {
       setPosts(data.posts || [])
     } catch (error) {
       console.error('Feed error:', error)
-      // Don't show toast for 404s on initial load
       if (error.response?.status !== 404) {
         toast.error('Failed to load feed')
       }
@@ -39,7 +38,6 @@ const Feed = () => {
     try {
       await axios.put(`/posts/${postId}/like`)
       fetchPosts()
-      toast.success('Post liked!')
     } catch (error) {
       toast.error('Failed to like post')
     }
@@ -117,8 +115,17 @@ const Feed = () => {
               <h3 className="text-xl font-bold text-gray-800 mb-2">{post.title}</h3>
               <p className="text-gray-600 mb-4">{post.description}</p>
 
+              {/* Photo Evidence */}
               {post.photoUrl && (
-                <img src={post.photoUrl} alt="Post" className="rounded-lg mb-4 max-h-96 w-full object-cover" />
+                <div className="mb-4">
+                  <img 
+                    src={post.photoUrl} 
+                    alt="Evidence" 
+                    className="rounded-lg max-h-96 w-full object-cover cursor-pointer"
+                    onClick={() => window.open(post.photoUrl, '_blank')}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">📸 Click to view full image (verification evidence)</p>
+                </div>
               )}
 
               {post.interventionNeeded && post.type === 'issue' && (

@@ -3,32 +3,46 @@ const User = require('../models/User');
 
 // Award points based on action type
 const calculatePoints = (type, interventionNeeded) => {
-  if (type === 'tree') return 50; // Planting tree
-  if (type === 'issue' && interventionNeeded) return 30; // Issue needing help
-  return 20; // Simple report
+  if (type === 'tree') return 50;
+  if (type === 'issue' && interventionNeeded) return 30;
+  return 20;
 };
 
-// @desc    Create a new post (issue or tree)
+// @desc    Create a new post with photo
 // @route   POST /api/posts/create
 const createPost = async (req, res) => {
   try {
-    const { type, title, description, photoUrl, location, coordinates, interventionNeeded, interventionType } = req.body;
+    const { type, title, description, location, coordinates, interventionNeeded, interventionType } = req.body;
     
-    // Calculate points
+    // Check if photo was uploaded
+    if (!req.file) {
+      return res.status(400).json({ message: 'Photo is required to verify your action' });
+    }
+    
     const pointsAwarded = calculatePoints(type, interventionNeeded);
     
-    // Create post
+    // Parse coordinates if provided
+    let coords = {};
+    if (coordinates) {
+      try {
+        coords = typeof coordinates === 'string' ? JSON.parse(coordinates) : coordinates;
+      } catch (e) {
+        coords = {};
+      }
+    }
+    
     const post = await Post.create({
       type,
       title,
       description,
-      photoUrl: photoUrl || '',
+      photoUrl: req.file.path, // Cloudinary URL
+      photoPublicId: req.file.filename, // For potential deletion
       location,
-      coordinates: coordinates || {},
+      coordinates: coords,
       userId: req.user._id,
       username: req.user.username,
       pointsAwarded,
-      interventionNeeded: interventionNeeded || false,
+      interventionNeeded: interventionNeeded === 'true' || interventionNeeded === true,
       interventionType: interventionType || null,
       status: 'pending'
     });
@@ -40,13 +54,11 @@ const createPost = async (req, res) => {
     
     if (type === 'tree') {
       updateData.$inc.treesPlanted = 1;
-      // Award tree planter badge if not already have
       if (!req.user.badges.includes('Tree Planter') && req.user.treesPlanted + 1 >= 1) {
         updateData.$push = { badges: 'Tree Planter' };
       }
     } else {
       updateData.$inc.reportsMade = 1;
-      // Award issue reporter badge
       if (!req.user.badges.includes('Issue Reporter') && req.user.reportsMade + 1 >= 1) {
         if (!updateData.$push) updateData.$push = {};
         updateData.$push.badges = 'Issue Reporter';
@@ -64,14 +76,16 @@ const createPost = async (req, res) => {
     res.status(201).json({
       success: true,
       post,
-      pointsEarned: pointsAwarded
+      pointsEarned: pointsAwarded,
+      message: type === 'tree' ? 'Tree planting verified! 🌳' : 'Issue reported with photo evidence! 📸'
     });
   } catch (error) {
+    console.error('Create post error:', error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Get public timeline feed (all posts)
+// @desc    Get public timeline feed
 // @route   GET /api/posts/feed
 const getFeed = async (req, res) => {
   try {
@@ -92,6 +106,7 @@ const getFeed = async (req, res) => {
       posts
     });
   } catch (error) {
+    console.error('Get feed error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -109,34 +124,34 @@ const getPost = async (req, res) => {
     
     res.json({ success: true, post });
   } catch (error) {
+    console.error('Get post error:', error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Get posts by location (near me)
+// @desc    Get nearby posts
 // @route   GET /api/posts/nearby
 const getNearbyPosts = async (req, res) => {
   try {
-    const { lat, lng, radius = 10 } = req.query; // radius in km
+    const { lat, lng, radius = 10 } = req.query;
     
-    // Simple location-based filtering (you can enhance with geospatial queries)
     const posts = await Post.find({
       'coordinates.lat': { $exists: true },
       'coordinates.lng': { $exists: true }
     }).limit(50);
     
-    // Filter posts within radius (simplified)
     const nearby = posts.filter(post => {
       if (!post.coordinates.lat) return false;
       const distance = Math.sqrt(
-        Math.pow(post.coordinates.lat - lat, 2) + 
-        Math.pow(post.coordinates.lng - lng, 2)
-      ) * 111; // Rough km conversion
-      return distance <= radius;
+        Math.pow(post.coordinates.lat - parseFloat(lat), 2) + 
+        Math.pow(post.coordinates.lng - parseFloat(lng), 2)
+      ) * 111;
+      return distance <= parseFloat(radius);
     });
     
     res.json({ success: true, count: nearby.length, posts: nearby });
   } catch (error) {
+    console.error('Nearby posts error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -163,11 +178,12 @@ const likePost = async (req, res) => {
     
     res.json({ success: true, likes: post.likes.length, hasLiked: !hasLiked });
   } catch (error) {
+    console.error('Like post error:', error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Add comment to post
+// @desc    Add comment
 // @route   POST /api/posts/:id/comment
 const addComment = async (req, res) => {
   try {
@@ -196,11 +212,12 @@ const addComment = async (req, res) => {
       comment: post.comments[post.comments.length - 1] 
     });
   } catch (error) {
+    console.error('Add comment error:', error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Update post status (for interventions)
+// @desc    Update post status
 // @route   PUT /api/posts/:id/status
 const updateStatus = async (req, res) => {
   try {
@@ -222,6 +239,7 @@ const updateStatus = async (req, res) => {
     
     res.json({ success: true, post });
   } catch (error) {
+    console.error('Update status error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -236,11 +254,12 @@ const getUserPosts = async (req, res) => {
     
     res.json({ success: true, count: posts.length, posts });
   } catch (error) {
+    console.error('Get user posts error:', error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Get impact stats (all users aggregated)
+// @desc    Get impact stats
 // @route   GET /api/posts/stats/impact
 const getImpactStats = async (req, res) => {
   try {
@@ -264,6 +283,7 @@ const getImpactStats = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Get stats error:', error);
     res.status(500).json({ message: error.message });
   }
 };
