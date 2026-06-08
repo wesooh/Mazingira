@@ -5,10 +5,10 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Generate JWT Token
+// Generate JWT Token - FIXED expiresIn format
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE
+    expiresIn: '30d'  // Changed from process.env.JWT_EXPIRE to string literal
   });
 };
 
@@ -17,6 +17,8 @@ const generateToken = (id) => {
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password, location } = req.body;
+    
+    console.log('Registration attempt:', { username, email, location }); // Debug log
     
     // Check if user exists
     const userExists = await User.findOne({ $or: [{ email }, { username }] });
@@ -34,6 +36,8 @@ router.post('/register', async (req, res) => {
       location
     });
     
+    console.log('User created:', user._id); // Debug log
+    
     // Return response (hide sensitive data)
     res.status(201).json({
       success: true,
@@ -41,6 +45,7 @@ router.post('/register', async (req, res) => {
       user: user.toPublicJSON()
     });
   } catch (error) {
+    console.error('Registration error:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -50,6 +55,8 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    console.log('Login attempt:', email); // Debug log
     
     // Check if user exists
     const user = await User.findOne({ email });
@@ -63,6 +70,8 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
     
+    console.log('User logged in:', user._id); // Debug log
+    
     // Return response
     res.json({
       success: true,
@@ -70,6 +79,7 @@ router.post('/login', async (req, res) => {
       user: user.toPublicJSON()
     });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -80,6 +90,7 @@ router.get('/me', protect, async (req, res) => {
   try {
     res.json({ user: req.user.toPublicJSON() });
   } catch (error) {
+    console.error('Get me error:', error);
     res.status(500).json({ message: error.message });
   }
 });
