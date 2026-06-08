@@ -4,45 +4,58 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', async (_req, res) => {
+// @route   GET /api/users
+// @desc    Get all users (only public info)
+router.get('/', async (req, res) => {
   try {
-    const users = await User.find().select('-email -password').sort({ points: -1 });
-    res.json(users.map((u) => u.toPublicJSON()));
+    const users = await User.find({})
+      .select('username location points treesPlanted reportsMade badges')
+      .sort({ points: -1 });
+    
+    res.json({ users });
   } catch (error) {
+    console.error('Get users error:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
-router.get('/leaderboard', async (_req, res) => {
-  try {
-    const users = await User.find()
-      .select('-email -password')
-      .sort({ points: -1 })
-      .limit(20);
-    res.json(users.map((u) => u.toPublicJSON()));
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
+// @route   GET /api/users/:id
+// @desc    Get single user by ID (public info only)
 router.get('/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-email -password');
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user.toPublicJSON());
+    // Validate if ID is a valid MongoDB ObjectId
+    const isValidId = req.params.id.match(/^[0-9a-fA-F]{24}$/);
+    if (!isValidId) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+    
+    const user = await User.findById(req.params.id)
+      .select('username location points treesPlanted reportsMade badges createdAt');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({ user });
   } catch (error) {
+    console.error('Get user error:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
-router.put('/profile', protect, async (req, res) => {
+// @route   GET /api/users/leaderboard/top
+// @desc    Get top 10 users by points
+router.get('/leaderboard/top', async (req, res) => {
   try {
-    const { location } = req.body;
-    if (location) req.user.location = location;
-    await req.user.save();
-    res.json(req.user.toPublicJSON());
+    const topUsers = await User.find({})
+      .select('username location points treesPlanted reportsMade')
+      .sort({ points: -1 })
+      .limit(10);
+    
+    res.json({ leaderboard: topUsers });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    console.error('Leaderboard error:', error);
+    res.status(500).json({ message: error.message });
   }
 });
 

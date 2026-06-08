@@ -26,10 +26,14 @@ export const AuthProvider = ({ children }) => {
   const fetchUser = async () => {
     try {
       const { data } = await axios.get('/auth/me')
-      setUser(data.user)
+      // Ensure user object has an id field
+      const userData = {
+        ...data.user,
+        id: data.user._id || data.user.id // Make sure id exists
+      }
+      setUser(userData)
     } catch (error) {
       console.error('Failed to fetch user:', error)
-      // If token is invalid, clear it
       if (error.response?.status === 401) {
         localStorage.removeItem('token')
         setToken(null)
@@ -46,7 +50,11 @@ export const AuthProvider = ({ children }) => {
       setToken(data.token)
       localStorage.setItem('token', data.token)
       axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
-      setUser(data.user)
+      const userData = {
+        ...data.user,
+        id: data.user._id || data.user.id
+      }
+      setUser(userData)
       toast.success('Welcome back to Mazingira! 🌍')
       return true
     } catch (error) {
@@ -61,7 +69,11 @@ export const AuthProvider = ({ children }) => {
       setToken(data.token)
       localStorage.setItem('token', data.token)
       axios.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
-      setUser(data.user)
+      const userWithId = {
+        ...data.user,
+        id: data.user._id || data.user.id
+      }
+      setUser(userWithId)
       toast.success('Account created! Welcome to Mazingira 🌱')
       return true
     } catch (error) {
