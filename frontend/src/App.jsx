@@ -8,8 +8,61 @@ import Feed from './pages/Feed'
 import CreatePost from './pages/CreatePost'
 import Profile from './pages/Profile'
 import Leaderboard from './pages/Leaderboard'
-import { AuthProvider } from './context/AuthContext'
-import PrivateRoute from './components/PrivateRoute'
+import { AuthProvider, useAuth } from './context/AuthContext'
+
+// Protected Route wrapper
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth()
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🌍</div>
+          <div className="text-forest text-xl">Loading Mazingira...</div>
+        </div>
+      </div>
+    )
+  }
+  
+  return user ? children : <Navigate to="/login" />
+}
+
+function AppContent() {
+  const { user } = useAuth()
+  
+  return (
+    <div className="min-h-screen">
+      {user && <Navbar />}
+      <div className="container mx-auto px-4 py-8">
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Feed />
+            </ProtectedRoute>
+          } />
+          <Route path="/create" element={
+            <ProtectedRoute>
+              <CreatePost />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile/:id?" element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } />
+          <Route path="/leaderboard" element={
+            <ProtectedRoute>
+              <Leaderboard />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </div>
+    </div>
+  )
+}
 
 function App() {
   return (
@@ -21,21 +74,10 @@ function App() {
             background: '#2E7D32',
             color: '#fff',
           },
+          duration: 3000,
         }}
       />
-      <div className="min-h-screen">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8">
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/" element={<PrivateRoute><Feed /></PrivateRoute>} />
-            <Route path="/create" element={<PrivateRoute><CreatePost /></PrivateRoute>} />
-            <Route path="/profile/:id?" element={<PrivateRoute><Profile /></PrivateRoute>} />
-            <Route path="/leaderboard" element={<PrivateRoute><Leaderboard /></PrivateRoute>} />
-          </Routes>
-        </div>
-      </div>
+      <AppContent />
     </AuthProvider>
   )
 }

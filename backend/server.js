@@ -25,6 +25,24 @@ app.get('/', (req, res) => {
   res.json({ message: '🌍 Mazingira API is running!' });
 });
 
+// Add this after your routes but before app.listen
+// Handle 404 errors for undefined routes
+app.use('*', (req, res) => {
+  res.status(404).json({ 
+    message: 'Route not found',
+    requestedUrl: req.originalUrl 
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ 
+    message: 'Internal server error',
+    error: err.message 
+  });
+});
+
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connected'))

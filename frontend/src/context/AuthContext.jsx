@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [loading, setLoading] = useState(true)
 
+  // Configure axios defaults
   axios.defaults.baseURL = 'http://localhost:5000/api'
 
   useEffect(() => {
@@ -28,7 +29,12 @@ export const AuthProvider = ({ children }) => {
       setUser(data.user)
     } catch (error) {
       console.error('Failed to fetch user:', error)
-      logout()
+      // If token is invalid, clear it
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token')
+        setToken(null)
+        delete axios.defaults.headers.common['Authorization']
+      }
     } finally {
       setLoading(false)
     }
@@ -73,7 +79,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   )

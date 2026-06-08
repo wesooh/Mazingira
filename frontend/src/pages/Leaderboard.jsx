@@ -1,29 +1,56 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
 const Leaderboard = () => {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
+  const { token } = useAuth()
 
   useEffect(() => {
-    fetchLeaderboard()
-  }, [])
+    if (token) {
+      fetchLeaderboard()
+    } else {
+      setLoading(false)
+    }
+  }, [token])
 
   const fetchLeaderboard = async () => {
     try {
+      setLoading(true)
       const { data } = await axios.get('/users/leaderboard/top')
-      setUsers(data.leaderboard)
+      setUsers(data.leaderboard || [])
     } catch (error) {
-      toast.error('Failed to load leaderboard')
+      console.error('Leaderboard error:', error)
+      // If endpoint fails, try to get all users instead
+      try {
+        const { data } = await axios.get('/users')
+        // Sort by points manually
+        const sortedUsers = (data.users || []).sort((a, b) => b.points - a.points).slice(0, 10)
+        setUsers(sortedUsers)
+      } catch (fallbackError) {
+        console.error('Fallback leaderboard error:', fallbackError)
+        setUsers([])
+        if (error.response?.status !== 404) {
+          toast.error('Failed to load leaderboard')
+        }
+      }
     } finally {
       setLoading(false)
     }
   }
 
   if (loading) {
-    return <div className="text-center text-forest text-xl">Loading leaderboard... 🏆</div>
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🏆</div>
+          <div className="text-forest text-xl">Loading leaderboard...</div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -32,46 +59,48 @@ const Leaderboard = () => {
         <div className="text-center mb-8">
           <span className="text-6xl">🏆</span>
           <h1 className="text-3xl font-bold text-forest mt-4">Environmental Champions</h1>
-          <p className="text-gray-600 mt-2">Top 10 eco-warriors by points</p>
+          <p className="text-gray-600 mt-2">Top eco-warriors making a difference</p>
         </div>
 
-        <div className="space-y-3">
-          {users.map((user, index) => (
-            <Link to={`/profile/${user._id}`} key={user._id}>
-              <div className="flex items-center justify-between p-4 bg-mint rounded-lg hover:bg-leaf transition-colors cursor-pointer">
-                <div className="flex items-center gap-4">
-                  <div className="text-3xl font-bold text-forest w-12">
-                    #{index + 1}
+        {users.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🌱</div>
+            <p className="text-gray-500 text-lg">No users yet. Be the first eco-warrior!</p>
+            <p className="text-gray-400 mt-2">Start by reporting issues or planting trees</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {users.map((user, index) => (
+              <Link to={`/profile/${user._id}`} key={user._id}>
+                <div className="flex items-center justify-between p-4 bg-mint rounded-lg hover:bg-leaf transition-colors cursor-pointer">
+                  <div className="flex items-center gap-4">
+                    <div className="text-3xl font-bold text-forest w-12">
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800">{user.username}</div>
+                      <div className="text-sm text-gray-600">📍 {user.location || 'Unknown'}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-semibold text-gray-800">{user.username}</div>
-                    <div className="text-sm text-gray-600">📍 {user.location}</div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-forest">{user.points || 0}</div>
+                    <div className="text-sm text-gray-600">
+                      🌳 {user.treesPlanted || 0} trees • ⚠️ {user.reportsMade || 0} reports
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-forest">{user.points}</div>
-                  <div className="text-sm text-gray-600">
-                    🌳 {user.treesPlanted} trees • ⚠️ {user.reportsMade} reports
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-
-          {users.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No users yet. Be the first eco-warrior! 🌱</p>
-            </div>
-          )}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
 
         <div className="mt-8 p-4 bg-forest bg-opacity-10 rounded-lg">
           <h3 className="font-semibold text-forest mb-2">💚 How to Earn Points</h3>
           <ul className="text-sm text-gray-700 space-y-1">
-            <li>🌳 Plant a tree: +50 points</li>
-            <li>⚠️ Report an issue: +20 points</li>
-            <li>🚨 Report issue needing intervention: +30 points</li>
-            <li>🏅 Earn badges for milestones</li>
+            <li>🌳 Plant a tree: <span className="font-semibold">+50 points</span></li>
+            <li>⚠️ Report an issue: <span className="font-semibold">+20 points</span></li>
+            <li>🚨 Report issue needing intervention: <span className="font-semibold">+30 points</span></li>
+            <li>🏅 Earn badges for reaching milestones</li>
           </ul>
         </div>
       </div>
